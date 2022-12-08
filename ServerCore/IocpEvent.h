@@ -13,6 +13,12 @@ enum class IocpEventType : unsigned char
 	SEND,
 };
 
+/*
+1. overlapped 구조체를 래핑하는 역할
+2. 어떤 작업을 완료했는가 (IocpEventType)
+3. 해당 작업에 대한 추가 정보를 저장하는 역할
+*/
+
 class IocpEvent 
 {
 protected:

@@ -82,10 +82,9 @@ void Session::RegisterRecv()
 {
 	iocp_event_recv_.SetOwner(shared_from_this());
 	iocp_event_recv_.ZeroMemoryOverlapped();
-
+		
 	iocp_event_recv_.wsabuf_.buf = recv_buffer_.GetBufferRear();
 	iocp_event_recv_.wsabuf_.len = recv_buffer_.GetSpace();
-
 	DWORD num_of_bytes = 0, flags = 0;
 	if (WSARecv(socket_, &iocp_event_recv_.wsabuf_, 1, &num_of_bytes, &flags, (LPWSAOVERLAPPED)&iocp_event_recv_, nullptr) == SOCKET_ERROR)
 	{

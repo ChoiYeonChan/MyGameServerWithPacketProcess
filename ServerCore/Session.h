@@ -78,7 +78,7 @@ public:
 	PacketSession(ServiceRef service);
 	virtual ~PacketSession();
 
-	PacketSessionRef GetPacketSessionRef() const { return static_pointer_cast<PacketSession>(shared_from_this()); }
+	PacketSessionRef GetPacketSessionRef() { return static_pointer_cast<PacketSession>(shared_from_this()); }
 
 protected:
 	virtual int OnRecv(char* buffer, int length) override;
