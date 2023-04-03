@@ -56,7 +56,7 @@ public:
 class ServerService : public Service
 {
 private:
-	ListenerRef Listener_;
+	ListenerRef listener_;
 
 public:
 	ServerService(NetAddress address, int max_session_count);

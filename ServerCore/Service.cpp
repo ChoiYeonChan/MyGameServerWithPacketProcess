@@ -78,8 +78,8 @@ bool ServerService::Start()
         thread_manager_.Push([=]() { iocp_manager_->WorkerThreadFunction(); });
     }
 
-    Listener_ = make_shared<Listener>(static_pointer_cast<Service>(shared_from_this()));
-    Listener_->StartAccept();
+    listener_ = make_shared<Listener>(static_pointer_cast<Service>(shared_from_this()));
+    listener_->StartAccept();
 
     return true;
 }

@@ -22,7 +22,6 @@
 	}												\
 }
 
-
 /*********************
 *	     Lock
 **********************/
@@ -43,4 +42,4 @@
 #define len32(arr) static_cast<int>(sizeof(arr) / sizeof(arr[0]))
 
 
-#define __STOMP__
+// #define __STOMP__

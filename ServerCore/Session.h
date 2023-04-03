@@ -77,7 +77,7 @@ class PacketSession : public Session
 public:
 	PacketSession(ServiceRef service);
 	virtual ~PacketSession();
-
+		
 	PacketSessionRef GetPacketSessionRef() { return static_pointer_cast<PacketSession>(shared_from_this()); }
 
 protected:

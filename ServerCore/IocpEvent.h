@@ -34,7 +34,7 @@ public:
 
 	void ZeroMemoryOverlapped();
 	void SetType(IocpEventType type) { type_ = type; }
-	IocpEventType GetType() { return type_; }
+	IocpEventType GetType() const { return type_; }
 
 	void SetOwner(IocpObjectRef owner) { owner_ = owner; }
 	IocpObjectRef GetOwner() const { return owner_; }

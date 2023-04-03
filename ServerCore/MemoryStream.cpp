@@ -68,15 +68,6 @@ bool MemoryStream::Peek(void* out_data, const unsigned int out_byte_count)
 {
 	if (out_data == nullptr || length_ < out_byte_count)
 	{
-		if (out_data == nullptr)
-		{
-			cout << "1";
-		}
-		if (length_ < out_byte_count)
-		{
-			cout << "2 : ";
-			cout << length_ << ", " << out_byte_count;
-		}
 		return false;
 	}
 
