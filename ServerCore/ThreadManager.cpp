@@ -1,8 +1,5 @@
 #include "pch.h"
 #include "ThreadManager.h"
-#include <iostream>
-
-thread_local unsigned int L_thread_id = -1;
 
 ThreadManager::ThreadManager()
 {
@@ -12,27 +9,30 @@ ThreadManager::ThreadManager()
 ThreadManager::~ThreadManager()
 {
 	Join();
+	DestroyTLS();
 }
 
 void ThreadManager::Push(std::function<void(void)> callback)
 {
-	std::lock_guard<std::mutex> lock(list_lock_);
-	thread_list_.push_back(std::thread([=]()
-		{
-			InitializeTLS();
-			callback();
-			DestroyTLS();
-		})
-	);
+	{
+		std::lock_guard<std::mutex> lock(lock_thread_list_);
+		thread_list_.push_back(std::thread([=]()
+			{
+				InitializeTLS();
+				callback();
+				DestroyTLS();
+			}
+		));
+	}
 }
 
 void ThreadManager::Join()
 {
-	for (auto& t : thread_list_)
-	{	
-		//if (t.joinable())
+	for (auto& thread : thread_list_)
+	{
+		if (thread.joinable())
 		{
-			t.join();
+			thread.join();
 		}
 	}
 
@@ -47,5 +47,4 @@ void ThreadManager::InitializeTLS()
 
 void ThreadManager::DestroyTLS()
 {
-
 }

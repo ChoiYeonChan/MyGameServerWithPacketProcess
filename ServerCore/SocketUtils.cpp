@@ -34,23 +34,24 @@ SOCKET SocketUtils::CreateSocket()
 	SOCKET socket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
 	if (socket == INVALID_SOCKET)
 	{
-		std::cout << "SocketUtils::CreateSocket() => INVALID_SOCKET_ERROR (" << WSAGetLastError() << ")" << std::endl;
-		CRASH("INVALID_SOCKET_ERROR");
+		std::cout << "[SocketUtils] 소켓 생성에 실패했습니다. (" << WSAGetLastError() << ")" << std::endl;
 	}
 
 	return socket;
 }
 
-void SocketUtils::Bind(SOCKET socket, NetAddress netaddress)
+bool SocketUtils::Bind(SOCKET socket, NetAddress netaddress)
 {
 	if (::bind(socket, (SOCKADDR*)(&netaddress.GetSocketAddress()), sizeof(SOCKADDR_IN)) == SOCKET_ERROR)
 	{
-		std::cout << "SocketUtils::Bind() => SOCKET_ERROR (" << WSAGetLastError() << ")" << std::endl;
-		CRASH("BIND_SOCKET_ERROR");
+		std::cout << "[SocketUtils] 소켓 바인드에 실패했습니다. (" << WSAGetLastError() << ")" << std::endl;
+		return false;
 	}
+
+	return true;
 }
 
-void SocketUtils::BindAnyAddress(SOCKET socket, int port)
+bool SocketUtils::BindAnyAddress(SOCKET socket, int port)
 {
 	SOCKADDR_IN my_address;
 	my_address.sin_family = AF_INET;
@@ -59,18 +60,22 @@ void SocketUtils::BindAnyAddress(SOCKET socket, int port)
 
 	if (::bind(socket, (SOCKADDR*)&my_address, sizeof(my_address)) == SOCKET_ERROR)
 	{
-		std::cout << "SocketUtils::BindAnyAddress() => SOCKET_ERROR (" << WSAGetLastError() << ")" << std::endl;
-		CRASH("BIND_SOCKET_ERROR");
+		std::cout << "[SocketUtils] 소켓 바인드에 실패했습니다. (" << WSAGetLastError() << ")" << std::endl;
+		return false;
 	}
+
+	return true;
 }
 
-void SocketUtils::Listen(SOCKET socket, int backlog)
+bool SocketUtils::Listen(SOCKET socket, int backlog)
 {
 	if (listen(socket, backlog) == SOCKET_ERROR)
 	{
-		std::cout << "SocketUtils::Listen() => SOCKET_ERROR (" << WSAGetLastError() << ")" << std::endl;
-		CRASH("LISTEN_SOCKET_ERROR");
+		std::cout << "[SocketUtils] 소켓 listen에 실패했습니다. (" << WSAGetLastError() << ")" << std::endl;
+		return false;
 	}
+
+	return true;
 }
 
 void SocketUtils::Close(SOCKET& socket)

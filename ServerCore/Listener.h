@@ -15,20 +15,11 @@ private:
 	std::vector<IocpEventAccept*> accept_event_list_;
 
 public:
-	Listener(ServiceRef service) : IocpObject(service), listen_socket_(INVALID_SOCKET)
-	{
+	Listener(ServiceRef service) : IocpObject(service), listen_socket_(INVALID_SOCKET) { };
+	virtual ~Listener() { };
 
-	};
-
-	virtual ~Listener()
-	{
-		for (IocpEventAccept* accept_event : accept_event_list_)
-		{
-			delete accept_event;
-		}
-
-		CloseSocket();
-	}
+	void Start() override;
+	void Close() override;
 
 	bool StartAccept();
 
@@ -42,4 +33,3 @@ private:
 	void RegisterAccept(IocpEventAccept* accept_event);
 	void ProcessAccept(IocpEventAccept* accept_event);
 };
-

@@ -14,11 +14,11 @@ public:
 	static Type* Pop(Args&& ... args)
 	{
 #ifdef __STOMP__
-		mymp::BlockHeader* ptr = reinterpret_cast<mymp::BlockHeader*>(StompAllocator::Allocate(alloc_size_ + sizeof(mymp::BlockHeader)));		
+		mymp::BlockHeader* ptr = reinterpret_cast<mymp::BlockHeader*>(StompAllocator::Allocate(alloc_size_ + sizeof(mymp::BlockHeader)));
 #else
 		mymp::BlockHeader* ptr;
 		memory_pool_.Pop(ptr);
-		
+
 #endif
 		Type* memory = static_cast<Type*>(mymp::BlockHeader::AttachHeader(ptr, alloc_size_));
 		new(memory) Type(std::forward<Args>(args)...);

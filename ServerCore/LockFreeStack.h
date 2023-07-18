@@ -1,11 +1,6 @@
 #pragma once
+#include "pch.h"
 
-#include <iostream>
-#include <Windows.h>
-#include <new>
-#include <malloc.h>
-
-using namespace std;
 
 template <typename DATA>
 class LockFreeStack
@@ -13,25 +8,26 @@ class LockFreeStack
 private:
 	struct __declspec(align(16)) Node
 	{
-		DATA value;
+		DATA data;
 		Node* next;
 
-		Node() : value(0), next(nullptr) { }
-		Node(DATA _value) : value(_value), next(nullptr) { }
+		Node() : next(nullptr) { }
+		Node(DATA value) : data(value), next(nullptr) { }
 	};
 
 	struct __declspec(align(16)) StampNode
 	{
 		Node* ptr;
-		LONGLONG stamp;
+		LONG64 stamp;
 
 		StampNode() : ptr(nullptr), stamp(0) { }
 	};
 
 private:
-	volatile StampNode* top;
-	Node* free_list;
+	StampNode* top;
 	ULONGLONG size;
+
+	Node* free_list;
 	ULONGLONG pop_count;
 
 public:
@@ -40,8 +36,10 @@ public:
 		top = (StampNode*)_aligned_malloc(sizeof(StampNode), 16);
 		if (top == nullptr)
 		{
-			std::cout << "LockFreeStack() : top is nullptr" << std::endl;
+			std::cout << "메모리 할당에 실패했습니다. (top)" << std::endl;
+			return;
 		}
+
 		top->ptr = nullptr;
 		top->stamp = 0;
 	}
@@ -49,36 +47,18 @@ public:
 	~LockFreeStack()
 	{
 		Clear();
+		_aligned_free(top);
 	}
 
-	void Clear()
-	{
-		volatile unsigned long long cnt = 0;
-
-		Node* ptr = nullptr;
-		while (top->ptr != nullptr)
-		{
-			ptr = top->ptr;
-			top->ptr = top->ptr->next;
-			_aligned_free(ptr);
-			InterlockedDecrement(&size);
-
-			InterlockedIncrement(&cnt);
-		}
-		InterlockedExchange64(&top->stamp, 0);
-
-		std::cout << "LockFreeStack clear count : " << cnt << " size : " << size << std::endl;
-	}
-
-	bool Push(const DATA& _value)
+	bool Push(const DATA source)
 	{
 		Node* node = (Node*)_aligned_malloc(sizeof(Node), 16);
 		if (node == nullptr)
 		{
-			std::cout << "memory nullptr\n";
+			std::cout << "메모리 할당에 실패했습니다. (node)" << std::endl;
 			return false;
 		}
-		new(node) Node(_value);
+		new(node) Node(source);
 
 		while (true)
 		{
@@ -87,13 +67,7 @@ public:
 			oldTop.stamp = top->stamp;
 
 			node->next = oldTop.ptr;
-
-			if (InterlockedCompareExchange128(
-				(volatile LONG64*)top,
-				oldTop.stamp + 1,
-				(LONG64)node,
-				(LONG64*)&oldTop
-			))
+			if (InterlockedCompareExchange128((LONG64*)top, oldTop.stamp + 1, (LONG64)node, (LONG64*)&oldTop))
 			{
 				InterlockedIncrement(&size);
 				return true;
@@ -101,10 +75,8 @@ public:
 		}
 	}
 
-	bool Pop(DATA* _value)
+	bool Pop(DATA* destination)
 	{
-		InterlockedIncrement(&pop_count);
-
 		while (true)
 		{
 			StampNode oldTop;
@@ -112,35 +84,42 @@ public:
 			oldTop.stamp = top->stamp;
 			if (oldTop.ptr == nullptr)
 			{
-				InterlockedDecrement(&pop_count);
 				return false;
 			}
 
-			if (InterlockedCompareExchange128(
-				(volatile LONG64*)top,
-				oldTop.stamp + 1,
-				(LONG64)oldTop.ptr->next,
-				(LONG64*)&oldTop
-			))
+			if (InterlockedCompareExchange128((LONG64*)top, oldTop.stamp + 1, (LONG64)oldTop.ptr->next, (LONG64*)&oldTop))
 			{
 				InterlockedDecrement(&size);
-				*_value = oldTop.ptr->value;
-				TryDelete(oldTop.ptr);
+				*destination = oldTop.ptr->data;
 
 				return true;
 			}
 		}
 	}
 
-	ULONGLONG GetSize()
+	void Clear()
 	{
-		return size;
+		unsigned long long cnt = 0;
+
+		Node* ptr = nullptr;
+		while (top->ptr != nullptr)
+		{
+			ptr = top->ptr;
+			top->ptr = top->ptr->next;
+			_aligned_free(ptr);
+
+			InterlockedDecrement(&size);
+			InterlockedIncrement(&cnt);
+		}
+
+		top->ptr = nullptr;
+		top->stamp = 0;
+
+		std::cout << "LockFreeStack Clear Count : " << cnt << " Size : " << size << std::endl;
 	}
 
-	bool Empty()
-	{
-		return (size == 0 && top->ptr == nullptr);
-	}
+	ULONGLONG GetSize() { return size; }
+	bool Empty() { return (size == 0 && top->ptr == nullptr); }
 
 	void Display(int cnt)
 	{
@@ -152,80 +131,6 @@ public:
 			--cnt;
 		}
 		std::cout << "\n difference : " << cnt;
-	}
-
-private:
-
-	void TryDelete(Node* oldTop)
-	{
-		/* TryDelete를 수행하는 시점에 pop_count가 1이라는 것은
-		 * 내가 delete할 top를 oldTop으로 가지고 있는 스레드는 없다는 의미이다.
-		 * 그러므로 top은 분명하게 delete 할 수 있다.
-		 *
-		 */
-
-		if (pop_count == 1)
-		{
-			_aligned_free(oldTop);
-
-			Node* old_free_list = (Node*)InterlockedExchangePointer(reinterpret_cast<volatile PVOID*>(&free_list), NULL);
-
-			if (InterlockedDecrement(&pop_count) == 0)
-			{
-				ReleaseFreeList(old_free_list);
-			}
-			else if (old_free_list != nullptr)
-			{
-				AddListToFreeList(old_free_list);
-			}
-		}
-		/* pop_count가 1이 아니라는 것은 내가 delete할 top을 다른 스레드가
-		 * oldTop으로 가지고 있다는 것이므로 삭제 예약만 한다.
-		 */
-		else
-		{
-			AddNodeFreeList(oldTop);
-			InterlockedDecrement(&pop_count);
-		}
-	}
-
-	void AddNodeFreeList(Node* first, Node* last)
-	{
-		while (true)
-		{
-			Node* old_free_list = free_list;
-			last->next = old_free_list;
-			if (InterlockedCompareExchangePointer(reinterpret_cast<volatile PVOID*>(&free_list), first, old_free_list)
-				== old_free_list)
-			{
-				return;
-			}
-		}
-	}
-
-	void AddNodeFreeList(Node* node)
-	{
-		AddNodeFreeList(node, node);
-	}
-
-	void AddListToFreeList(Node* node)
-	{
-		Node* last = node;
-		while (last->next != nullptr)
-		{
-			last = last->next;
-		}
-		AddNodeFreeList(node, last);
-	}
-
-	void ReleaseFreeList(Node* ptr)
-	{
-		while (ptr != nullptr)
-		{
-			Node* next = ptr->next;
-			_aligned_free(ptr);
-			ptr = next;
-		}
 	}
 };
 

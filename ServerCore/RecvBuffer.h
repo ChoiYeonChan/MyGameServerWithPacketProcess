@@ -8,7 +8,5 @@ public:
 	{
 
 	}
-
-	// char* WritePosition() const { return GetBufferRear(); }
 };
 

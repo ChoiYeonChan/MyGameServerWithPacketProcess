@@ -1,24 +1,21 @@
 #include "pch.h"
-
 #include "CoreGlobal.h"
-#include "Memory.h"
-#include "ThreadManager.h"
 
-ThreadManager* g_thread_manager = nullptr;
-Memory* g_memory = nullptr;
+Memory* g_memory;
+BufferManager* g_buffer_manager;
 
 class CoreGlobal
 {
 public:
 	CoreGlobal()
 	{
-		g_thread_manager = new ThreadManager();
 		g_memory = new Memory();
+		g_buffer_manager = new BufferManager();
 	}
 
 	~CoreGlobal()
 	{
-		delete g_thread_manager;
 		delete g_memory;
+		delete g_buffer_manager;
 	}
 } g_core_global;

@@ -1,39 +1,26 @@
 #include "pch.h"
 #include "MemoryPool.h"
 
-/*-------------------
-	LockFreeStack
--------------------*/
+/************************
+	   LockFreeStack
+*************************/
 
 mymp::LockFreeStack::LockFreeStack() : size(0)
 {
 	top = (StampNode*)_aligned_malloc(sizeof(StampNode), 16);
 	if (top == nullptr)
 	{
-		std::cout << "LockFreeStack() alloc memory falid" << std::endl;
-		// CRASH("MEMORY ALLOCATE FAILED");
+		std::cout << "메모리 할당에 실패했습니다. (top)" << std::endl;
+		return;
 	}
-	new(top)StampNode;
+
+	top->ptr = nullptr;
+	top->stamp = 0;
 }
 
 mymp::LockFreeStack::~LockFreeStack()
 {
 	Clear();
-}
-
-void mymp::LockFreeStack::Clear()
-{
-	BlockHeader* ptr = nullptr;
-	
-	while (top->ptr != nullptr)
-	{
-		ptr = top->ptr;
-		top->ptr = top->ptr->next;
-		_aligned_free(ptr);
-	}
-	
-	InterlockedExchange64(&top->stamp, 0);
-	size = 0;
 }
 
 void mymp::LockFreeStack::Push(BlockHeader* node)
@@ -46,12 +33,7 @@ void mymp::LockFreeStack::Push(BlockHeader* node)
 
 		node->next = oldTop.ptr;
 
-		if (InterlockedCompareExchange128(
-			(volatile LONG64*)top,
-			oldTop.stamp + 1,
-			(LONG64)node,
-			(LONG64*)&oldTop
-		))
+		if (InterlockedCompareExchange128((LONG64*)top, oldTop.stamp + 1, (LONG64)node, (LONG64*)&oldTop))
 		{
 			InterlockedIncrement(&size);
 			break;
@@ -71,70 +53,81 @@ bool mymp::LockFreeStack::Pop(BlockHeader*& node)
 			return false;
 		}
 
-		if (InterlockedCompareExchange128(
-			(volatile LONG64*)top,
-			oldTop.stamp + 1,
-			(LONG64)oldTop.ptr->next,
-			(LONG64*)&oldTop
-		))
+		if (InterlockedCompareExchange128((LONG64*)top, oldTop.stamp + 1, (LONG64)oldTop.ptr->next, (LONG64*)&oldTop))
 		{
 			InterlockedDecrement(&size);
 			node = oldTop.ptr;
-			// TryDelete(oldTop.ptr);
 
 			return true;
 		}
 	}
 }
 
-/*-------------------
-	  MemoryPool
--------------------*/
-
-void mymp::MemoryPool::Push(BlockHeader* node)
+void mymp::LockFreeStack::Clear()
 {
-	if (node->size != alloc_size_ || node->code != BlockHeader::CURRENT_ALLOC)
+	BlockHeader* ptr = nullptr;
+
+	while (top->ptr != nullptr)
 	{
-		std::cout << "[MemoryPool] wrong memory release" << std::endl;
-		std::cout << "size : " << node->size << "(" << alloc_size_ << "), code : " << node->code << std::endl;
-		// CRASH
+		ptr = top->ptr;
+		top->ptr = top->ptr->next;
+		_aligned_free(ptr);
+
+		InterlockedDecrement(&size);
+	}
+
+	top->ptr = nullptr;
+	top->stamp = 0;
+
+	std::cout << "LockFreeStack Size After Clear : " << size << std::endl;
+}
+
+/**********************
+	   MemoryPool
+***********************/
+
+void mymp::MemoryPool::Push(BlockHeader* header)
+{
+	if (header->size != alloc_size_ || header->code != BlockHeader::CURRENT_ALLOC)
+	{
+		std::cout << header->size << ", " << alloc_size_ << ", " << header->code << ", " << BlockHeader::CURRENT_ALLOC << std::endl;
+		std::cout << "잘못된 메모리 해제입니다." << std::endl;
+		return;
 	}
 	else
 	{
-		// 동일한 메모리에 대해 메모리 해제하는 것을 방지한다.
-		if (InterlockedCompareExchange16(&node->code, BlockHeader::CURRENT_RELEASE, BlockHeader::CURRENT_ALLOC) != BlockHeader::CURRENT_ALLOC)
+		if (InterlockedCompareExchange16(&header->code, BlockHeader::CURRENT_RELEASE, BlockHeader::CURRENT_ALLOC) != BlockHeader::CURRENT_ALLOC)
 		{
-			std::cout << "[MemoryPool] already released memory" << std::endl;
-			// CRASH
+			std::cout << "이미 해제된 메모리입니다." << std::endl;
+			return;
 		}
 		else
 		{
-			container_.Push(node);
+			container_.Push(header);
 			++release_count_;
 			--alloc_count_;
 		}
 	}
 }
 
-void mymp::MemoryPool::Pop(BlockHeader*& node)
+void mymp::MemoryPool::Pop(BlockHeader*& header)
 {
-	// 메모리 풀이 비어있는 경우 새로 할당한다.
-	if (!container_.Pop(node))
+	if (container_.Pop(header) == false)
 	{
-		node = (BlockHeader*)_aligned_malloc(alloc_size_ + sizeof(mymp::BlockHeader), 16);
-		if (node == nullptr)
+		header = (BlockHeader*)_aligned_malloc(alloc_size_ + sizeof(mymp::BlockHeader), 16);
+		if (header == nullptr)
 		{
-			std::cout << "[MemoryPool] memory alloc failed" << std::endl;
-			// CRASH
+			std::cout << "메모리 할당에 실패하셨습니다. (header)" << std::endl;
+			return;
 		}
 	}
 	else
 	{
-		if (node->size != alloc_size_ || node->code != BlockHeader::CURRENT_RELEASE)
+		if (header->size != alloc_size_ || header->code != BlockHeader::CURRENT_RELEASE)
 		{
-			std::cout << "[MemoryPool] memory pool corrupted (" << node->code << ")" << std::endl;
-			std::cout << "size : " << node->size << ", code : " << node->code << std::endl;
+			std::cout << "메모리풀이 오염되었습니다." << std::endl;
 			// CRASH
+			return;
 		}
 
 		--release_count_;

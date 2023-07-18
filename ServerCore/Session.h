@@ -1,5 +1,6 @@
 #pragma once
 
+#include "NetAddress.h"
 #include "IocpEvent.h"
 #include "IocpObject.h"
 #include "RecvBuffer.h"
@@ -14,10 +15,10 @@ private:
 
 	int session_id_;
 
+	RecvBuffer recv_buffer_;
+
 	std::queue<SendBufferRef> send_queue_;
 	CRITICAL_SECTION lock_send_queue_;
-
-	RecvBuffer recv_buffer_;
 
 	IocpEventRecv iocp_event_recv_;
 	IocpEventSend iocp_event_send_;
@@ -30,6 +31,14 @@ public:
 	Session(ServiceRef service);
 	virtual ~Session();
 
+	void Start() override;
+	void Close() override;
+
+	void CreateSocket();
+
+	// Getter & Setter
+	bool IsConnected() { return is_connected_; };
+
 	void SetAddress(NetAddress address) { address_ = address; }
 	NetAddress GetAddress() const { return address_; }
 
@@ -38,49 +47,33 @@ public:
 
 	SessionRef GetSessionRef() { return static_pointer_cast<Session>(shared_from_this()); }
 
+	void SetSessionSocket(SOCKET socket) { socket_ = socket; }
 	SOCKET GetSessionSocket() const { return socket_; }
 
 	virtual HANDLE GetHandle() const override { return (HANDLE)socket_; }
 	virtual void Dispatch(class IocpEvent* iocp_event, int num_of_bytes = 0) override;
 
-	// NetWork Send
+	// Network
 private:
+	void ProcessConnect();
+	void RegisterDisconnect();
+	void ProcessDisconnect();
+
 	void RegisterSend();
 	void ProcessSend(int num_of_bytes);
 
 	void RegisterRecv();
 	void ProcessRecv(int num_of_bytes);
 
-	void RegisterDisconnect();
-	void ProcessDisconnect();
-	void ProcessConnect();
-
 protected:
-	virtual void OnSend() {};
-	virtual int OnRecv(char* buffer, int length);
+	virtual void OnConnect() {};
 	virtual void OnDisconnect() {};
+
+	virtual int OnRecv(char* buffer, int length);
+	virtual void OnSend(int length) {};
 
 public:
 	bool Send(SendBufferRef send_buffer);
 	void Disconnect();
 };
 
-
-struct PacketHeader
-{
-	unsigned short id;
-	unsigned short size;
-};
-
-class PacketSession : public Session
-{
-public:
-	PacketSession(ServiceRef service);
-	virtual ~PacketSession();
-		
-	PacketSessionRef GetPacketSessionRef() { return static_pointer_cast<PacketSession>(shared_from_this()); }
-
-protected:
-	virtual int OnRecv(char* buffer, int length) override;
-	virtual int OnRecvPacket(char* buffer, int length) abstract;
-};

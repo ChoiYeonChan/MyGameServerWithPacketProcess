@@ -1,7 +1,5 @@
 #pragma once
 
-#include <Windows.h>
-
 /*********************
 *	     Crash
 **********************/
@@ -22,6 +20,7 @@
 	}												\
 }
 
+
 /*********************
 *	     Lock
 **********************/
@@ -40,6 +39,3 @@
 
 #define size32(val) static_cast<int>(sizeof(val))
 #define len32(arr) static_cast<int>(sizeof(arr) / sizeof(arr[0]))
-
-
-// #define __STOMP__

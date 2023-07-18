@@ -1,6 +1,5 @@
 #pragma once
-#include <memory>
-#include <atomic>
+#include "pch.h"
 
 /*********************
 *	  base types
@@ -22,6 +21,7 @@ using uint64 = unsigned __int64;
 using ServiceRef = std::shared_ptr<class Service>;
 using ServerServiceRef = std::shared_ptr<class ServerService>;
 
+using SessionManagerRef = std::shared_ptr<class SessionManager>;
 using IocpManagerRef = std::shared_ptr<class IocpManager>;
 
 using IocpObjectRef = std::shared_ptr<class IocpObject>;
@@ -31,3 +31,4 @@ using SessionRef = std::shared_ptr<class Session>;
 using PacketSessionRef = std::shared_ptr<class PacketSession>;
 
 using SendBufferRef = std::shared_ptr<class SendBuffer>;
+using BufferChunkRef = std::shared_ptr<class BufferChunk>;

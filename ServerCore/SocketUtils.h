@@ -17,9 +17,9 @@ public:
 
 	// basic socket functions
 	static SOCKET CreateSocket();
-	static void Bind(SOCKET socket, NetAddress netaddress);
-	static void BindAnyAddress(SOCKET socket, int port);
-	static void Listen(SOCKET socket, int backlog = SOMAXCONN);
+	static bool Bind(SOCKET socket, NetAddress netaddress);
+	static bool BindAnyAddress(SOCKET socket, int port);
+	static bool Listen(SOCKET socket, int backlog = SOMAXCONN);
 	static void Close(SOCKET& socket);
 
 	// socket options
@@ -33,4 +33,3 @@ public:
 	static bool GetRecvBufferSize(SOCKET socket, int* size);
 	static bool GetSendBufferSize(SOCKET socket, int* size);
 };
-

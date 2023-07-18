@@ -1,31 +1,23 @@
 #include "pch.h"
 #include "Service.h"
+#include "Session.h"
+#include "SessionManager.h"
 #include "IocpManager.h"
 #include "Listener.h"
-#include "Session.h"
 
-
-Service::Service(ServiceType type, NetAddress address, int max_session_count)
-    : type_(type), address_(address), max_session_count_(max_session_count), 
-    current_session_count_(0), current_session_id_(0)
+Service::Service(ServiceType type, NetAddress address, std::function<SessionRef()> session_factory, int max_session_count)
+    : type_(type), address_(address), SessionFactory(session_factory)
 {
+    session_manager_ = make_shared<SessionManager>(max_session_count);
     iocp_manager_ = make_shared<IocpManager>();
-    InitializeCriticalSection(&lock_session_list_);
 }
 
 SessionRef Service::CreateSession()
 {
-    SessionRef session = make_shared<Session>(shared_from_this());
-
+    SessionRef session = SessionFactory();
+    if (session_manager_->AddSession(session) == -1)
     {
-        EnterCriticalSection(&lock_session_list_);
-
-        session->SetSessionId(current_session_id_++);
-
-        session_manager_.push_back(session);
-        ++current_session_count_;
-        
-        LeaveCriticalSection(&lock_session_list_);
+        return nullptr;
     }
 
     return session;
@@ -33,32 +25,19 @@ SessionRef Service::CreateSession()
 
 void Service::DestroySession(SessionRef session)
 {
-    {
-        EnterCriticalSection(&lock_session_list_);
-        session_manager_.remove(session);
-        --current_session_count_;
-
-        session->SetSessionId(-1);  // temp
-
-        LeaveCriticalSection(&lock_session_list_);
-    }
-}
-
-void Service::DisplaySessionList()
-{
-    for (auto it : session_manager_)
-    {
-        cout << it->GetSessionId() << " ";
-    }
+    session_manager_->RemoveSession(session->GetSessionId());
 }
 
 void Service::RegisterForIocp(IocpObject* iocp_object)
 {
-    iocp_manager_->Register(iocp_object);
+    if (!iocp_manager_->Register(iocp_object))
+    {
+        std::cout << "IOCP 등록에 실패했습니다." << std::endl;
+    }
 }
 
-ServerService::ServerService(NetAddress address, int max_session_count)
-    : Service(ServiceType::SERVER, address, max_session_count)
+ServerService::ServerService(NetAddress address, std::function<SessionRef()> session_factory, int max_session_count)
+    : Service(ServiceType::SERVER, address, session_factory, max_session_count)
 {
     SocketUtils::Initialize();
 }
@@ -79,7 +58,7 @@ bool ServerService::Start()
     }
 
     listener_ = make_shared<Listener>(static_pointer_cast<Service>(shared_from_this()));
-    listener_->StartAccept();
+    listener_->Start();
 
     return true;
 }

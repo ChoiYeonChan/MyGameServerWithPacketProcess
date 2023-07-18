@@ -3,13 +3,23 @@
 #include "Service.h"
 #include "ObjectPool.h"
 
-#define SERVER_PORT 6000
+#define PROCADEMY_SERVER_PORT 6000
+
+ServerServiceRef service;
+SessionRef func()
+{
+	return MakeShared<Session>(service);
+}
 
 int main(void)
 {
-	ServerServiceRef service = make_shared<ServerService>(NetAddress(L"127.0.0.1", SERVER_PORT), 5000);
+	service = make_shared<ServerService>(NetAddress(L"127.0.0.1", PROCADEMY_SERVER_PORT), func, 5000);
 	service->Start();
-	service->Close();
+	while (true)
+	{
+		;
+	}
+
 
 	return 0;
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "NetAddress.h"
+#include "SessionManager.h"
 #include "ThreadManager.h"
 
 enum class ServiceType : unsigned char
@@ -15,29 +16,18 @@ protected:
 	ServiceType type_;
 	NetAddress address_;
 
-	std::list<SessionRef> session_manager_;
-	CRITICAL_SECTION lock_session_list_;
-
-	int current_session_count_;
-	int max_session_count_;
-
-	int current_session_id_;
-
+	SessionManagerRef session_manager_;
 	IocpManagerRef iocp_manager_;
 	ThreadManager thread_manager_;
 
-public:
-	Service(ServiceType type, NetAddress address, int max_session_count);
-	virtual ~Service() {};
+	std::function<SessionRef()> SessionFactory;
 
-	// Network Session
+public:
+	Service(ServiceType type, NetAddress address, std::function<SessionRef()> session_factory, int max_session_count);
+	virtual ~Service() { };
+
 	SessionRef CreateSession();
 	void DestroySession(SessionRef session);
-
-	int GetCurrentSessionCount() const { return current_session_count_; }
-	int GetMaxSessionCount() const { return max_session_count_; }
-
-	void DisplaySessionList();	// temp
 
 	// Network Iocp
 	IocpManagerRef GetIocpManager() const { return iocp_manager_; }
@@ -59,10 +49,9 @@ private:
 	ListenerRef listener_;
 
 public:
-	ServerService(NetAddress address, int max_session_count);
+	ServerService(NetAddress address, std::function<SessionRef()> session_factory, int max_session_count);
 	virtual ~ServerService();
 
 	virtual bool Start() override;
 	virtual void Close() override;
 };
-

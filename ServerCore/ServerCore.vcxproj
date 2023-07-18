@@ -142,6 +142,7 @@
     <ClInclude Include="Allocator.h" />
     <ClInclude Include="CoreGlobal.h" />
     <ClInclude Include="CorePch.h" />
+    <ClInclude Include="CoreTLS.h" />
     <ClInclude Include="IocpEvent.h" />
     <ClInclude Include="IocpManager.h" />
     <ClInclude Include="IocpObject.h" />
@@ -173,12 +174,14 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="Session.h" />
+    <ClInclude Include="SessionManager.h" />
     <ClInclude Include="SocketUtils.h" />
     <ClInclude Include="ThreadManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Allocator.cpp" />
     <ClCompile Include="CoreGlobal.cpp" />
+    <ClCompile Include="CoreTLS.cpp" />
     <ClCompile Include="IocpEvent.cpp" />
     <ClCompile Include="IocpManager.cpp" />
     <ClCompile Include="IocpObject.cpp" />
@@ -215,6 +218,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="SessionManager.cpp" />
     <ClCompile Include="SocketUtils.cpp" />
     <ClCompile Include="ThreadManager.cpp" />
   </ItemGroup>

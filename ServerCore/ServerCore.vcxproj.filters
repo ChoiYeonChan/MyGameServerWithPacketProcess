@@ -25,6 +25,9 @@
     <Filter Include="Network\Socket">
       <UniqueIdentifier>{d6bc3d6b-a811-4590-85a6-2d2c3ab3d862}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Network\Service">
+      <UniqueIdentifier>{261d45c6-4c99-445e-a56a-cc3a07518ccd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Allocator.h">
@@ -87,9 +90,6 @@
     <ClInclude Include="Listener.h">
       <Filter>Network\Socket</Filter>
     </ClInclude>
-    <ClInclude Include="Service.h">
-      <Filter>Network</Filter>
-    </ClInclude>
     <ClInclude Include="LockFreeStack.h">
       <Filter>Utility</Filter>
     </ClInclude>
@@ -98,6 +98,15 @@
     </ClInclude>
     <ClInclude Include="ObjectPool.h">
       <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreTLS.h">
+      <Filter>Main</Filter>
+    </ClInclude>
+    <ClInclude Include="Service.h">
+      <Filter>Network\Service</Filter>
+    </ClInclude>
+    <ClInclude Include="SessionManager.h">
+      <Filter>Network\Session</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -149,9 +158,6 @@
     <ClCompile Include="Listener.cpp">
       <Filter>Network\Socket</Filter>
     </ClCompile>
-    <ClCompile Include="Service.cpp">
-      <Filter>Network</Filter>
-    </ClCompile>
     <ClCompile Include="LockFreeStack.cpp">
       <Filter>Utility</Filter>
     </ClCompile>
@@ -160,6 +166,15 @@
     </ClCompile>
     <ClCompile Include="ObjectPool.cpp">
       <Filter>Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreTLS.cpp">
+      <Filter>Main</Filter>
+    </ClCompile>
+    <ClCompile Include="Service.cpp">
+      <Filter>Network\Service</Filter>
+    </ClCompile>
+    <ClCompile Include="SessionManager.cpp">
+      <Filter>Network\Session</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

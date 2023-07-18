@@ -1,6 +1,6 @@
 #pragma once
-
-class IocpObject;
+#include "IocpEvent.h"
+#include "IocpObject.h"
 
 class IocpManager
 {

@@ -3,77 +3,124 @@
 
 Memory::Memory()
 {
-	for (int size = 0; size <= MAX_ALLOC_SIZE; size++)
+	int size = 0;
+	int table_index = 0;
+
+	for (size = 32; size < 1024; size += 32)
 	{
-		pool_table_[size] = new mymp::MemoryPool(size);
+		mymp::MemoryPool* pool = new mymp::MemoryPool(size);
+		pool_list_.push_back(pool);
+
+		while (table_index <= size)
+		{
+			map_index_[table_index] = size;
+			pool_table_[table_index] = pool;
+			table_index++;
+		}
 	}
+
+	for (; size < 2048; size += 128)
+	{
+		mymp::MemoryPool* pool = new mymp::MemoryPool(size);
+		pool_list_.push_back(pool);
+
+		while (table_index <= size)
+		{
+			map_index_[table_index] = size;
+			pool_table_[table_index] = pool;
+			table_index++;
+		}
+	}
+
+	for (; size <= 4096; size += 256)
+	{
+		mymp::MemoryPool* pool = new mymp::MemoryPool(size);
+		pool_list_.push_back(pool);
+
+		while (table_index <= size)
+		{
+			map_index_[table_index] = size;
+			pool_table_[table_index] = pool;
+			table_index++;
+		}
+	}
+
+	/*
+	for (int i = 0; i <= 4096; i++)
+	{
+		if (map_index_[i] != pool_table_[i]->AllocSize())
+		{
+			std::cout << "memory() error!" << std::endl;
+			std::cout << i << " " << map_index_[i] << " " << pool_table_[i] << std::endl;
+		}
+	}
+	*/
 }
 
 Memory::~Memory()
 {
-	for (int size = 0; size <= MAX_ALLOC_SIZE; size++)
-	{
-		delete pool_table_[size];
-	}
+	for (mymp::MemoryPool* pool : pool_list_)
+		delete pool;
+
+	pool_list_.clear();
 }
 
 void* Memory::Allocate(unsigned int size)
 {
-	mymp::BlockHeader* alloc_node = nullptr;
-	int alloc_size = size + sizeof(mymp::BlockHeader);
-
-#ifdef __STOMP__
-	alloc_node = (mymp::BlockHeader*)(StompAllocator::Allocate(alloc_size));
-#else
-	// 할당 사이즈가 최대 사이즈보다 크다면 메모리풀에서 추출하지 않고 메모리 할당한다.
-	if (size > MAX_ALLOC_SIZE)
+	if (size <= 0)
 	{
-		alloc_node = (mymp::BlockHeader*)_aligned_malloc(size + sizeof(mymp::BlockHeader), 16);
-	}
-	else
-	{
-		pool_table_[size]->Pop(alloc_node);
-	}
-#endif
-	if (alloc_node == nullptr)
-	{
-		std::cout << "[Memory] memory allocate failed" << std::endl;
+		std::cout << "잘못된 할당 요청입니다." << std::endl;
 		return nullptr;
 	}
 
-	return mymp::BlockHeader::AttachHeader(alloc_node, size);
+	mymp::BlockHeader* header = nullptr;
+	int alloc_size = size + sizeof(mymp::BlockHeader);
+
+	if (size > MAX_ALLOC_SIZE)
+	{
+		header = (mymp::BlockHeader*)_aligned_malloc(size + sizeof(mymp::BlockHeader), 16);
+	}
+	else
+	{
+		pool_table_[size]->Pop(header);
+	}
+
+	if (header == nullptr)
+	{
+		std::cout << "메모리 할당에 실패했습니다. (header)" << std::endl;
+		return nullptr;
+	}
+
+	return mymp::BlockHeader::AttachHeader(header, map_index_[size]);
 }
 
 void Memory::Release(void* ptr)
 {
-	mymp::BlockHeader* release_node = mymp::BlockHeader::DetachHeader(ptr);
+	mymp::BlockHeader* header = mymp::BlockHeader::DetachHeader(ptr);
 
-	int alloc_size = release_node->size;
+	short alloc_size = header->size;
 	if (alloc_size <= 0)
 	{
+		std::cout << "잘못된 메모리 해제입니다." << alloc_size << std::endl;
 		// CRASH
+		return;
 	}
 
-#ifdef __STOMP__
-	StompAllocator::Release(release_node);
-#else
-	// 최대 사이즈보다 클 경우는 메모리 풀로 반납하지 않고 메모리 해제한다.	
 	if (alloc_size > MAX_ALLOC_SIZE)
 	{
-		_aligned_free(release_node);
+		_aligned_free(header);
 	}
 	else
 	{
-		pool_table_[alloc_size]->Push(release_node);
+		pool_table_[alloc_size]->Push(header);
 	}
-#endif
 }
 
 void Memory::Display()
 {
-	for (int i = 0; i < MAX_ALLOC_SIZE; i++)
+	for (int i = 0; i < 100; i++)
 	{
 		std::cout << '[' << i << "] Alloc : " << pool_table_[i]->AllocCount()
-		<< ", Release : " << pool_table_[i]->ReleaseCount() << std::endl;		
+			<< ", Release : " << pool_table_[i]->ReleaseCount() << std::endl;
 	}
 }

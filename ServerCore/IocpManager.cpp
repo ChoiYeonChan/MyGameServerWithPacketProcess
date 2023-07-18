@@ -1,7 +1,5 @@
 #include "pch.h"
 #include "IocpManager.h"
-#include "IocpEvent.h"
-#include "IocpObject.h"
 
 IocpManager::IocpManager()
 {
@@ -16,7 +14,15 @@ IocpManager::~IocpManager()
 
 bool IocpManager::Register(IocpObject* object)
 {
-	return CreateIoCompletionPort(object->GetHandle(), iocp_handle_, (ULONG_PTR)object, 0);
+	if (CreateIoCompletionPort(object->GetHandle(), iocp_handle_, (ULONG_PTR)object, 0) == NULL)
+	{
+		std::cout << "Iocp Register Failed (" << GetLastError() << ")" << std::endl;
+		return false;
+	}
+	else
+	{
+		return true;
+	}
 }
 
 bool IocpManager::WorkerThreadFunction(int timeout)
@@ -34,7 +40,7 @@ bool IocpManager::WorkerThreadFunction(int timeout)
 		}
 		else
 		{
-			std::cout << "GQCS Failed, error code : " << WSAGetLastError() << ", bytes : " << num_of_bytes << std::endl;
+			std::cout << "GQCS failed, error code : " << WSAGetLastError() << ", bytes : " << num_of_bytes << std::endl;
 			int error_code = WSAGetLastError();
 			switch (error_code)
 			{
@@ -46,6 +52,4 @@ bool IocpManager::WorkerThreadFunction(int timeout)
 			}
 		}
 	}
-
-	return true;
 }

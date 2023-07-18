@@ -2,84 +2,91 @@
 #include "MemoryStream.h"
 
 MemoryStream::MemoryStream() :
-	buffer_(nullptr), capacity_(DEFAULT_BUF_SIZE),
-	front_(0), rear_(0),
-	length_(0), space_(DEFAULT_BUF_SIZE)
+	buffer_(nullptr), front_(0), rear_(0),
+	capacity_(0), length_(0), space_(0), is_allocated_(false)
 {
-	ReallocBuffer(capacity_);
+
 }
 
-MemoryStream::MemoryStream(unsigned int size) :
-	buffer_(nullptr), capacity_(size),
-	front_(0), rear_(0),
-	length_(0), space_(size)
+MemoryStream::MemoryStream(unsigned int buf_size) :
+	buffer_(nullptr), front_(0), rear_(0),
+	capacity_(buf_size), length_(0), space_(buf_size), is_allocated_(false)
 {
-	ReallocBuffer(capacity_);
-}
-
-MemoryStream::MemoryStream(char* in_buffer, unsigned int in_buf_size, unsigned int size) :
-	buffer_(nullptr), capacity_(size),
-	front_(0), rear_(in_buf_size),
-	length_(in_buf_size), space_(size - in_buf_size)
-{
-	if (in_buf_size > size)
+	if (!AllocBuffer(capacity_))
 	{
-		CRASH("WRONG BUFFER SIZE");
+		CRASH("MEMORY ALLOC FAILED");
+	}
+}
+
+MemoryStream::MemoryStream(char* in_buffer, unsigned int in_buf_size, unsigned int buf_size, bool copy) :
+	buffer_(nullptr), front_(0), rear_(in_buf_size),
+	capacity_(buf_size), length_(in_buf_size), space_(buf_size - in_buf_size), is_allocated_(false)
+{
+	if (in_buf_size > buf_size)
+	{
+		CRASH("WRONG IN BUFFER SIZE");
 	}
 
-	ReallocBuffer(capacity_);
-	memcpy_s(buffer_, capacity_, in_buffer, in_buf_size);
+	if (copy)
+	{
+		if (!AllocBuffer(capacity_))
+		{
+			CRASH("MEMORY ALLOC FAILED");
+		}
+
+		memcpy_s(buffer_, capacity_, in_buffer, in_buf_size);
+	}
+	else
+	{
+		buffer_ = in_buffer;
+	}
 }
 
 MemoryStream::~MemoryStream()
 {
-	std::free(buffer_);
+	if (is_allocated_)
+	{
+		std::free(buffer_);
+	}
 }
 
-bool MemoryStream::ReallocBuffer(unsigned int new_capacity)
+bool MemoryStream::AllocBuffer(const unsigned int buf_size)
 {
-	buffer_ = static_cast<char*>(std::realloc(buffer_, new_capacity));
+	buffer_ = static_cast<char*>(std::malloc(buf_size));
 	if (buffer_ == nullptr)
 	{
-		CRASH("MEMORY ALLOC FAILED");
+		return false;
 	}
 
-	capacity_ = new_capacity;
+	capacity_ = buf_size;
 	space_ = capacity_ - length_;
+	is_allocated_ = true;
 
 	return true;
 }
 
-bool MemoryStream::Read(void* out_data, const unsigned int out_byte_count)
+void MemoryStream::SetBuffer(char* buffer, const unsigned int in_buf_size, const unsigned int buf_size)
 {
-	if (Peek(out_data, out_byte_count))
+	if (buffer_ != nullptr && is_allocated_)
 	{
-		OnRead(out_byte_count);
-
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
-bool MemoryStream::Peek(void* out_data, const unsigned int out_byte_count)
-{
-	if (out_data == nullptr || length_ < out_byte_count)
-	{
-		return false;
+		std::free(buffer_);
 	}
 
-	memcpy_s(out_data, out_byte_count, buffer_ + front_, out_byte_count);
+	capacity_ = buf_size;
+	length_ = in_buf_size;
+	space_ = buf_size - in_buf_size;
+	front_ = 0;
+	rear_ = in_buf_size;
+	is_allocated_ = false;
 
-	return true;
+	buffer_ = buffer;
 }
 
 bool MemoryStream::OnRead(const unsigned int out_byte_count)
 {
 	if (length_ < out_byte_count)
 	{
+		CRASH("WRONG MEMORY STREAM READ");
 		return false;
 	}
 
@@ -90,26 +97,11 @@ bool MemoryStream::OnRead(const unsigned int out_byte_count)
 	return true;
 }
 
-bool MemoryStream::Write(const void* in_data, const unsigned int in_byte_count)
-{
-	if (space_ < in_byte_count)
-	{
-		return false;
-	}
-	
-	memcpy_s(buffer_ + rear_, in_byte_count, in_data, in_byte_count);
-
-	rear_ += in_byte_count;
-	space_ -= in_byte_count;
-	length_ += in_byte_count;
-
-	return true;
-}
-
 bool MemoryStream::OnWrite(const unsigned int in_byte_count)
 {
 	if (space_ < in_byte_count)
 	{
+		CRASH("WRONG MEMORY STREAM WRITE");
 		return false;
 	}
 
@@ -119,6 +111,7 @@ bool MemoryStream::OnWrite(const unsigned int in_byte_count)
 
 	return true;
 }
+
 
 void MemoryStream::CleanUp()
 {
@@ -136,6 +129,13 @@ void MemoryStream::CleanUp()
 		front_ = 0;
 		rear_ = length_;
 	}
+}
+
+char* MemoryStream::GetDataSegment()
+{
+	char* segment = new char[length_];
+	memcpy_s(segment, length_, buffer_ + front_, length_);
+	return segment;
 }
 
 void MemoryStream::Display()
@@ -156,4 +156,52 @@ void MemoryStream::Display()
 	}
 
 	std::cout << "\n";
+}
+
+/**********************
+*     StreamReader
+***********************/
+
+bool StreamReader::Read(void* out_buffer, const unsigned int out_byte_count)
+{
+	if (Peek(out_buffer, out_byte_count))
+	{
+		stream_->OnRead(out_byte_count);
+		return true;
+	}
+	else
+	{
+		std::cout << "[StreamReader] Read Failed" << std::endl;
+		return false;
+	}
+}
+
+bool StreamReader::Peek(void* out_buffer, const unsigned int out_byte_count)
+{
+	if (out_buffer == nullptr || stream_->GetLength() < out_byte_count)
+	{
+		return false;
+	}
+
+	memcpy_s(out_buffer, out_byte_count, stream_->GetBufferFront(), out_byte_count);
+
+	return true;
+}
+
+/**********************
+*     StreamWriter
+***********************/
+
+bool StreamWriter::Write(const void* in_buffer, const unsigned int in_byte_count)
+{
+	if (stream_->GetSpace() < in_byte_count)
+	{
+		std::cout << "[StreamWrite] Write Failed" << std::endl;
+		return false;
+	}
+
+	memcpy_s(stream_->GetBufferRear(), in_byte_count, in_buffer, in_byte_count);
+	stream_->OnWrite(in_byte_count);
+
+	return true;
 }
